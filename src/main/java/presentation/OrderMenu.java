@@ -121,6 +121,14 @@ public class OrderMenu {
         }
 
         String newStatus = allowedStatuses.get(choice - 1);
+        if ("CANCELLED".equalsIgnoreCase(newStatus)) {
+            System.out.print("Ban co chac muon huy don khong? (y/n): ");
+            String confirm = sc.nextLine().trim();
+            if (!confirm.equalsIgnoreCase("y")) {
+                System.out.println("Da huy thao tac.");
+                return;
+            }
+        }
         boolean result = orderService.updateOrderStatus(orderId, newStatus);
 
         System.out.println(orderService.getLastMessage());
