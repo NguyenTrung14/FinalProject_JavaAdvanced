@@ -2,14 +2,13 @@ package util;
 
 import java.util.regex.Pattern;
 
-
 // validate du lieu dau vao
 
 public class ValidationUtil {
 
     private static final String EMAIL_REGEX = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
 
-    private static final String PHONE_REGEX = "^\\d{10}$";
+    private static final String PHONE_REGEX = "^(0[9])\\\\d{8}$";
 
     public static boolean isEmpty(String input) {
         return input == null || input.trim().isEmpty();

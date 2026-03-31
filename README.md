@@ -1,192 +1,175 @@
-#  SmartPhone Store Management (Java Console)
+# SmartPhone Store Management
 
-##  Giới thiệu
+## Giới thiệu
 
-Đây là hệ thống quản lý bán điện thoại viết bằng **Java Console + JDBC + MySQL**.
+SmartPhone Store Management là ứng dụng quản lý bán điện thoại viết bằng **Java Console**, sử dụng **JDBC** để kết nối **MySQL**.
 
-Ứng dụng hỗ trợ:
+Hệ thống hỗ trợ:
 
-* Quản lý sản phẩm, danh mục
-* Đặt hàng và xử lý đơn hàng
-* Phân quyền Admin / Customer
-* Đảm bảo dữ liệu bằng Transaction
-
----
-
-##  Công nghệ sử dụng
-
-* Java 17
-* JDBC
-* MySQL
-* Maven
-* JUnit 5
-* BCrypt (mã hóa mật khẩu)
+- Đăng ký, đăng nhập, phân quyền **Admin / Customer**
+- Quản lý danh mục và sản phẩm
+- Giỏ hàng và đặt hàng
+- Quản lý trạng thái đơn hàng
+- Coupon / Flash Sale
+- Thống kê doanh thu, top sản phẩm bán chạy
+- Kiểm tra dữ liệu đầu vào và đảm bảo tính toàn vẹn dữ liệu bằng transaction
 
 ---
 
-##  Cài đặt Database
+## Công nghệ sử dụng
 
-### Bước 1: tạo database
-
-Mở MySQL và chạy:
-
-```sql
-source finalproject.sql;
-```
-
----
-
-##  Cấu hình kết nối DB
-
-Mở file:
-
-```java
-util/DBConnection.java
-```
-
-Sửa lại thông tin:
-
-```java
-private static final String URL = "jdbc:mysql://localhost:3306/ten_database";
-private static final String USER = "root";
-private static final String PASS = "mat_khau_cua_ban";
-```
+- Java 17
+- JDBC
+- MySQL
+- Maven
+- JUnit 5
+- BCrypt
 
 ---
 
-## ▶ Chạy chương trình
+## Cấu trúc project
 
-Chạy file:
+Project được tổ chức theo mô hình nhiều tầng để dễ quản lý và bảo trì:
 
-```
-Main.java
-```
-
----
-
-## Tài khoản test
-
-### Admin
-
-* Email: [admin@gmail.com](mailto:admin@gmail.com)
-* Password: 123456
-
-### Customer
-
-* Email: [user@gmail.com](mailto:user@gmail.com)
-* Password: 123456
+- `model`: chứa entity
+- `dao`: thao tác dữ liệu với database
+- `service`: xử lý nghiệp vụ
+- `presentation`: giao diện console/menu
+- `util`: hàm dùng chung như validate, kết nối DB, mã hóa mật khẩu
 
 ---
 
-##  Chức năng chính
+## Chức năng chính
 
-###  Admin
+### 1. Authentication
 
-* Quản lý danh mục (CRUD)
-* Quản lý sản phẩm (CRUD)
-* Xem danh sách đơn hàng
-* Cập nhật trạng thái đơn hàng:
+- Đăng ký tài khoản khách hàng
+- Đăng nhập theo email và mật khẩu
+- Mật khẩu được mã hóa bằng BCrypt trước khi lưu
+- Phân quyền:
+  - `ADMIN`
+  - `CUSTOMER`
 
-  * PENDING → SHIPPING → DELIVERED
-  * Có thể hủy đơn (CANCELLED)
+### 2. Quản lý danh mục
+
+Admin có thể:
+
+- Xem danh sách danh mục
+- Thêm danh mục
+- Sửa danh mục
+- Xóa danh mục
+
+### 3. Quản lý sản phẩm
+
+Admin có thể:
+
+- Xem danh sách sản phẩm
+- Thêm sản phẩm
+- Sửa sản phẩm
+- Xóa sản phẩm
+- Tìm kiếm sản phẩm
+- Sắp xếp sản phẩm theo giá
+
+Customer có thể:
+
+- Xem danh sách sản phẩm
+- Tìm kiếm, lọc, sắp xếp sản phẩm
+- Thêm sản phẩm vào giỏ hàng
+
+### 4. Giỏ hàng và đặt hàng
+
+Customer có thể:
+
+- Xem giỏ hàng
+- Checkout đơn hàng
+- Xem lịch sử đơn hàng cá nhân
+- Xem chi tiết từng đơn hàng
+
+### 5. Quản lý đơn hàng
+
+Admin có thể:
+
+- Xem toàn bộ đơn hàng trong hệ thống
+- Cập nhật trạng thái đơn hàng:
+  - `PENDING`
+  - `SHIPPING`
+  - `DELIVERED`
+  - `CANCELLED`
+
+### 6. Khuyến mãi
+
+- Flash Sale theo phần trăm giảm giá trong khoảng thời gian nhất định
+- Coupon áp dụng cho hóa đơn khi đặt hàng
+
+### 7. Báo cáo
+
+- Thống kê doanh thu theo tháng
+- Top 5 sản phẩm bán chạy nhất tháng
 
 ---
 
-###  Customer
+## Validate dữ liệu đầu vào
 
-* Xem sản phẩm
-* Tìm kiếm / lọc / sắp xếp
-* Thêm vào giỏ hàng
-* Đặt hàng (checkout)
-* Xem lịch sử đơn hàng
-* Xem chi tiết đơn hàng
+Project sử dụng `ValidationUtil` để kiểm tra dữ liệu nhập vào.
+
+### Các validate đang dùng
+
+- Không được để trống
+- Email đúng định dạng
+- Số điện thoại phải:
+  - gồm 10 chữ số
+  - bắt đầu bằng số `0`
+- Mật khẩu tối thiểu 6 ký tự, gồm chữ và số
+- Giá phải lớn hơn 0
+- Stock phải lớn hơn hoặc bằng 0
+
+### Luồng đăng ký
+
+Trong chức năng đăng ký:
+
+- Nếu nhập sai họ tên / email / số điện thoại / mật khẩu thì hệ thống sẽ báo lỗi ngay
+- Người dùng có thể nhập lại ngay tại field đang sai
+- Người dùng có thể chọn thoát đăng ký nếu không muốn tiếp tục
+
+Lưu ý:
+
+- Kiểm tra **định dạng** được xử lý ở `util`
+- Kiểm tra **email/số điện thoại đã tồn tại** thuộc nghiệp vụ nên được xử lý ở `service`
 
 ---
 
-## Transaction (Quan trọng)
+## Transaction
 
-Ứng dụng sử dụng Transaction trong các nghiệp vụ:
+Một số nghiệp vụ quan trọng sử dụng transaction để tránh sai lệch dữ liệu.
 
 ### Checkout
 
-* Tạo order
-* Tạo order_detail
-* Trừ stock
-* Nếu lỗi → rollback toàn bộ
+Khi customer đặt hàng, hệ thống thực hiện trong cùng một transaction:
 
-### Hủy đơn hàng
+- Tạo order
+- Tạo order detail
+- Cập nhật tồn kho
 
-* Cập nhật trạng thái = CANCELLED
-* Cộng lại stock sản phẩm
-* Nếu lỗi → rollback
+Nếu có lỗi ở bất kỳ bước nào thì rollback toàn bộ.
 
----
+### Hủy đơn
 
-## Testing
+Khi hủy đơn:
 
-### Unit Test
+- Cập nhật trạng thái đơn hàng
+- Hoàn lại số lượng sản phẩm vào kho nếu cần
 
-* Kiểm tra validation:
-
-  * Email hợp lệ / không hợp lệ
-  * Số điện thoại
-  * Giá tiền
-  * Stock
-
-### SQL Injection Test
-
-Test input:
-
-```
-' OR '1'='1
-```
-
-Kết quả:
-
-* Không đăng nhập được → PASS
-
-Vì sử dụng `PreparedStatement`
+Nếu có lỗi thì rollback.
 
 ---
 
 ## Bảo mật
 
-* Mật khẩu được mã hóa bằng BCrypt
-* Sử dụng PreparedStatement chống SQL Injection
+- Mật khẩu được mã hóa bằng BCrypt
+- Sử dụng `PreparedStatement` để chống SQL Injection
 
----
+Ví dụ test SQL Injection:
 
-## Clean Code
-
-* Áp dụng mô hình:
-
-  * model
-  * dao
-  * service
-  * presentation
-  * util
-* Phân tách rõ ràng các tầng
-
----
-
-## Lưu ý
-
-* Không commit thư mục `target/`
-* Nên dùng `.gitignore`
-* Không nên hard-code password trong thực tế
-
----
-
-## Kết luận
-
-Dự án hoàn thành các yêu cầu:
-
-* CRUD đầy đủ
-* Authentication
-* Transaction đảm bảo dữ liệu
-* Unit Test cơ bản
-* Chống SQL Injection
-
-Đáp ứng yêu cầu Java Advanced (SRS)
-
----
+```sql
+' OR '1'='1
+```
