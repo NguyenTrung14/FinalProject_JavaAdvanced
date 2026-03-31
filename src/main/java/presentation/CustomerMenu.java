@@ -107,10 +107,13 @@ public class CustomerMenu {
 
         System.out.print("Nhap ho ten moi: ");
         updatedUser.setFullName(sc.nextLine().trim());
+
         System.out.print("Nhap email moi: ");
         updatedUser.setEmail(sc.nextLine().trim());
+
         System.out.print("Nhap so dien thoai moi: ");
         updatedUser.setPhone(sc.nextLine().trim());
+
         System.out.print("Nhap dia chi moi: ");
         updatedUser.setAddress(sc.nextLine().trim());
 
@@ -135,12 +138,15 @@ public class CustomerMenu {
     private void filterByPrice() {
         System.out.print("Nhap gia min: ");
         double min = inputDouble();
+
         System.out.print("Nhap gia max: ");
         double max = inputDouble();
+
         if (min > max) {
             System.out.println("Gia min khong duoc lon hon gia max.");
             return;
         }
+
         List<Product> products = productService.filterByPrice(min, max);
         showProducts(products);
     }
@@ -155,16 +161,18 @@ public class CustomerMenu {
     private void addToCart() {
         System.out.print("Nhap ma san pham: ");
         int productId = inputInt();
-        Product product = productService.findById(productId);
 
+        Product product = productService.findById(productId);
         if (product == null) {
             System.out.println("Khong tim thay san pham.");
             return;
         }
+
         if (!"ACTIVE".equalsIgnoreCase(product.getStatus())) {
             System.out.println("San pham khong hoat dong.");
             return;
         }
+
         if (product.getStock() <= 0) {
             System.out.println("San pham da het hang.");
             return;
@@ -177,6 +185,7 @@ public class CustomerMenu {
             System.out.println("So luong phai lon hon 0.");
             return;
         }
+
         if (quantity > product.getStock()) {
             System.out.println("So luong vuot qua ton kho.");
             return;
@@ -196,15 +205,25 @@ public class CustomerMenu {
         System.out.println("\n========== GIO HANG ==========");
         for (CartItem item : cartItems) {
             Product p = item.getProduct();
+
             System.out.println("Ma SP: " + p.getProductId());
             System.out.println("Ten SP: " + p.getProductName());
             System.out.println("Dung luong: " + p.getStorage());
             System.out.println("Mau sac: " + p.getColor());
-            System.out.println("Gia: " + p.getPrice());
+
+            if (p.isFlashSaleActive()) {
+                System.out.println("Gia goc: " + p.getPrice());
+                System.out.println("Flash sale: -" + p.getDiscountPercent() + "%");
+                System.out.println("Gia sau giam: " + p.getFinalPrice());
+            } else {
+                System.out.println("Gia: " + p.getPrice());
+            }
+
             System.out.println("So luong: " + item.getQuantity());
             System.out.println("Thanh tien: " + item.getSubtotal());
             System.out.println("--------------------------------");
         }
+
         System.out.println("Tong tien gio hang: " + cartService.getTotalAmount());
     }
 
@@ -213,12 +232,15 @@ public class CustomerMenu {
             System.out.println("Gio hang dang trong.");
             return;
         }
+
         showCart();
         System.out.print("Nhap ma san pham can xoa khoi gio: ");
         int productId = inputInt();
+
         boolean result = cartService.removeFromCart(productId);
-        System.out
-                .println(result ? "Xoa san pham khoi gio hang thanh cong." : "Khong tim thay san pham trong gio hang.");
+        System.out.println(result
+                ? "Xoa san pham khoi gio hang thanh cong."
+                : "Khong tim thay san pham trong gio hang.");
     }
 
     private void checkout(User currentUser) {
@@ -228,11 +250,13 @@ public class CustomerMenu {
         }
 
         showCart();
+
         System.out.print("Nhap coupon (bo trong neu khong co): ");
         String couponCode = sc.nextLine().trim();
 
         System.out.print("Xac nhan dat hang (Y/N): ");
         String confirm = sc.nextLine().trim();
+
         if (!confirm.equalsIgnoreCase("Y")) {
             System.out.println("Da huy dat hang.");
             return;
@@ -272,12 +296,13 @@ public class CustomerMenu {
     private void showOrderDetailsOfCurrentUser(User currentUser) {
         System.out.print("Nhap ma don hang can xem chi tiet: ");
         int orderId = inputInt();
-        Order order = orderService.findById(orderId);
 
+        Order order = orderService.findById(orderId);
         if (order == null) {
             System.out.println("Khong tim thay don hang.");
             return;
         }
+
         if (order.getUserId() != currentUser.getUserId()) {
             System.out.println("Ban khong duoc xem don hang cua nguoi khac.");
             return;
@@ -321,7 +346,15 @@ public class CustomerMenu {
             System.out.println("Ten SP: " + p.getProductName());
             System.out.println("Dung luong: " + p.getStorage());
             System.out.println("Mau sac: " + p.getColor());
-            System.out.println("Gia: " + p.getPrice());
+
+            if (p.isFlashSaleActive()) {
+                System.out.println("Gia goc: " + p.getPrice());
+                System.out.println("Flash sale: -" + p.getDiscountPercent() + "%");
+                System.out.println("Gia sau giam: " + p.getFinalPrice());
+            } else {
+                System.out.println("Gia: " + p.getPrice());
+            }
+
             System.out.println("Ton kho: " + p.getStock());
             System.out.println("Mo ta: " + p.getDescription());
             System.out.println("Ma hang: " + p.getCategoryId());

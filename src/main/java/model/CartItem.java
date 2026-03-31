@@ -32,6 +32,6 @@ public class CartItem {
         if (product == null) {
             return 0;
         }
-        return product.getPrice() * quantity;
+        return product.getFinalPrice() * quantity;
     }
 }

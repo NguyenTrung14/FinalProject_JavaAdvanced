@@ -12,6 +12,9 @@ public class Product {
     private String status;
     private String createdAt;
 
+    private double discountPercent;
+    private boolean flashSaleActive;
+
     public Product() {
     }
 
@@ -27,6 +30,8 @@ public class Product {
         this.categoryId = categoryId;
         this.status = status;
         this.createdAt = createdAt;
+        this.discountPercent = 0;
+        this.flashSaleActive = false;
     }
 
     public int getProductId() {
@@ -107,5 +112,28 @@ public class Product {
 
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public double getDiscountPercent() {
+        return discountPercent;
+    }
+
+    public void setDiscountPercent(double discountPercent) {
+        this.discountPercent = discountPercent;
+    }
+
+    public boolean isFlashSaleActive() {
+        return flashSaleActive;
+    }
+
+    public void setFlashSaleActive(boolean flashSaleActive) {
+        this.flashSaleActive = flashSaleActive;
+    }
+
+    public double getFinalPrice() {
+        if (!flashSaleActive || discountPercent <= 0) {
+            return price;
+        }
+        return price * (100 - discountPercent) / 100.0;
     }
 }
