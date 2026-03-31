@@ -17,10 +17,14 @@ import java.util.Scanner;
 public class CustomerMenu {
     private final Scanner sc = new Scanner(System.in);
     private final ProductService productService = new ProductService();
-    private final CartService cartService = new CartService();
+    private final CartService cartService;
     private final ShoppingService shoppingService = new ShoppingService();
     private final OrderService orderService = new OrderService();
     private final UserService userService = new UserService();
+
+    public CustomerMenu(CartService cartService) {
+        this.cartService = cartService;
+    }
 
     public void display(User currentUser) {
         int choice;
@@ -65,13 +69,13 @@ public class CustomerMenu {
                     showProducts(productService.sortByPriceDesc());
                     break;
                 case 7:
-                    addToCart();
+                    addToCart(currentUser);
                     break;
                 case 8:
-                    showCart();
+                    showCart(currentUser);
                     break;
                 case 9:
-                    removeFromCart();
+                    removeFromCart(currentUser);
                     break;
                 case 10:
                     checkout(currentUser);
@@ -158,7 +162,7 @@ public class CustomerMenu {
         showProducts(products);
     }
 
-    private void addToCart() {
+    private void addToCart(User currentUser) {
         System.out.print("Nhap ma san pham: ");
         int productId = inputInt();
 
@@ -191,12 +195,12 @@ public class CustomerMenu {
             return;
         }
 
-        boolean result = cartService.addToCart(product, quantity);
+        boolean result = cartService.addToCart(currentUser.getUserId(), product, quantity);
         System.out.println(result ? "Them vao gio hang thanh cong." : "Them vao gio hang that bai.");
     }
 
-    private void showCart() {
-        List<CartItem> cartItems = cartService.getCart();
+    private void showCart(User currentUser) {
+        List<CartItem> cartItems = cartService.getCart(currentUser.getUserId());
         if (cartItems == null || cartItems.isEmpty()) {
             System.out.println("Gio hang dang trong.");
             return;
@@ -224,32 +228,32 @@ public class CustomerMenu {
             System.out.println("--------------------------------");
         }
 
-        System.out.println("Tong tien gio hang: " + cartService.getTotalAmount());
+        System.out.println("Tong tien gio hang: " + cartService.getTotalAmount(currentUser.getUserId()));
     }
 
-    private void removeFromCart() {
-        if (cartService.isEmpty()) {
+    private void removeFromCart(User currentUser) {
+        if (cartService.isEmpty(currentUser.getUserId())) {
             System.out.println("Gio hang dang trong.");
             return;
         }
 
-        showCart();
+        showCart(currentUser);
         System.out.print("Nhap ma san pham can xoa khoi gio: ");
         int productId = inputInt();
 
-        boolean result = cartService.removeFromCart(productId);
+        boolean result = cartService.removeFromCart(currentUser.getUserId(), productId);
         System.out.println(result
                 ? "Xoa san pham khoi gio hang thanh cong."
                 : "Khong tim thay san pham trong gio hang.");
     }
 
     private void checkout(User currentUser) {
-        if (cartService.isEmpty()) {
+        if (cartService.isEmpty(currentUser.getUserId())) {
             System.out.println("Gio hang dang trong.");
             return;
         }
 
-        showCart();
+        showCart(currentUser);
 
         System.out.print("Nhap coupon (bo trong neu khong co): ");
         String couponCode = sc.nextLine().trim();
@@ -264,11 +268,11 @@ public class CustomerMenu {
 
         boolean result = shoppingService.checkout(
                 currentUser.getUserId(),
-                cartService.getCart(),
+                cartService.getCart(currentUser.getUserId()),
                 couponCode.isEmpty() ? null : couponCode);
 
         if (result) {
-            cartService.clearCart();
+            cartService.clearCart(currentUser.getUserId());
             System.out.println("Dat hang thanh cong.");
         } else {
             System.out.println("Dat hang that bai hoac coupon/flash sale khong hop le.");

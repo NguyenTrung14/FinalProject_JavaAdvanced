@@ -4,42 +4,66 @@ import model.CartItem;
 import model.Product;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class CartService {
-    private final List<CartItem> cart = new ArrayList<>();
+    private final Map<Integer, List<CartItem>> userCarts = new HashMap<>();
 
-    public List<CartItem> getCart() {
-        return cart;
+    private List<CartItem> getOrCreateCart(int userId) {
+        return userCarts.computeIfAbsent(userId, k -> new ArrayList<>());
     }
 
-    public boolean addToCart(Product product, int quantity) {
+    public List<CartItem> getCart(int userId) {
+        return getOrCreateCart(userId);
+    }
+
+    public boolean addToCart(int userId, Product product, int quantity) {
         if (product == null || quantity <= 0) {
             return false;
         }
 
+        List<CartItem> cart = getOrCreateCart(userId);
+
         for (CartItem item : cart) {
             if (item.getProduct().getProductId() == product.getProductId()) {
-                item.setQuantity(item.getQuantity() + quantity);
+                int newQuantity = item.getQuantity() + quantity;
+
+                if (newQuantity > product.getStock()) {
+                    return false;
+                }
+
+                item.setQuantity(newQuantity);
                 return true;
             }
+        }
+
+        if (quantity > product.getStock()) {
+            return false;
         }
 
         cart.add(new CartItem(product, quantity));
         return true;
     }
 
-    public boolean removeFromCart(int productId) {
-        return cart.removeIf(item -> item.getProduct().getProductId() == productId);
+    public boolean removeFromCart(int userId, int productId) {
+        return getOrCreateCart(userId)
+                .removeIf(item -> item.getProduct().getProductId() == productId);
     }
 
-    public boolean updateQuantity(int productId, int quantity) {
+    public boolean updateQuantity(int userId, int productId, int quantity) {
         if (quantity <= 0) {
             return false;
         }
 
+        List<CartItem> cart = getOrCreateCart(userId);
+
         for (CartItem item : cart) {
             if (item.getProduct().getProductId() == productId) {
+                if (quantity > item.getProduct().getStock()) {
+                    return false;
+                }
                 item.setQuantity(quantity);
                 return true;
             }
@@ -48,17 +72,17 @@ public class CartService {
         return false;
     }
 
-    public boolean isEmpty() {
-        return cart.isEmpty();
+    public boolean isEmpty(int userId) {
+        return getOrCreateCart(userId).isEmpty();
     }
 
-    public void clearCart() {
-        cart.clear();
+    public void clearCart(int userId) {
+        getOrCreateCart(userId).clear();
     }
 
-    public double getTotalAmount() {
+    public double getTotalAmount(int userId) {
         double total = 0;
-        for (CartItem item : cart) {
+        for (CartItem item : getOrCreateCart(userId)) {
             total += item.getSubtotal();
         }
         return total;

@@ -4,6 +4,7 @@ import model.User;
 import presentation.AdminMenu;
 import presentation.AuthUI;
 import presentation.CustomerMenu;
+import service.CartService;
 
 import java.util.Scanner;
 
@@ -11,10 +12,9 @@ public class Main {
     private static final Scanner sc = new Scanner(System.in);
     private static final AuthUI authUI = new AuthUI();
     private static final AdminMenu adminMenu = new AdminMenu();
-    private static final CustomerMenu customerMenu = new CustomerMenu();
+    private static final CartService cartService = new CartService();
 
     public static void main(String[] args) {
-        
         while (true) {
             System.out.println("\n========== HE THONG SMARTPHONE STORE ==========");
             System.out.println("1. Dang ky");
@@ -34,6 +34,7 @@ public class Main {
                         if ("ADMIN".equalsIgnoreCase(user.getRole())) {
                             adminMenu.display(user);
                         } else if ("CUSTOMER".equalsIgnoreCase(user.getRole())) {
+                            CustomerMenu customerMenu = new CustomerMenu(cartService);
                             customerMenu.display(user);
                         } else {
                             System.out.println("Role khong hop le.");
