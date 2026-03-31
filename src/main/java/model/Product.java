@@ -12,14 +12,17 @@ public class Product {
     private String status;
     private String createdAt;
 
-    private double discountPercent;
     private boolean flashSaleActive;
+    private double discountPercent;
+    private int flashSaleRemainingQuantity;
+    private double finalPrice;
 
     public Product() {
     }
 
-    public Product(int productId, String productName, String storage, String color, double price, int stock,
-            String description, int categoryId, String status, String createdAt) {
+    public Product(int productId, String productName, String storage, String color,
+            double price, int stock, String description, int categoryId,
+            String status, String createdAt) {
         this.productId = productId;
         this.productName = productName;
         this.storage = storage;
@@ -30,8 +33,6 @@ public class Product {
         this.categoryId = categoryId;
         this.status = status;
         this.createdAt = createdAt;
-        this.discountPercent = 0;
-        this.flashSaleActive = false;
     }
 
     public int getProductId() {
@@ -72,6 +73,7 @@ public class Product {
 
     public void setPrice(double price) {
         this.price = price;
+        recalculateFinalPrice();
     }
 
     public int getStock() {
@@ -114,26 +116,48 @@ public class Product {
         this.createdAt = createdAt;
     }
 
-    public double getDiscountPercent() {
-        return discountPercent;
-    }
-
-    public void setDiscountPercent(double discountPercent) {
-        this.discountPercent = discountPercent;
-    }
-
     public boolean isFlashSaleActive() {
         return flashSaleActive;
     }
 
     public void setFlashSaleActive(boolean flashSaleActive) {
         this.flashSaleActive = flashSaleActive;
+        recalculateFinalPrice();
+    }
+
+    public double getDiscountPercent() {
+        return discountPercent;
+    }
+
+    public void setDiscountPercent(double discountPercent) {
+        this.discountPercent = discountPercent;
+        recalculateFinalPrice();
+    }
+
+    public int getFlashSaleRemainingQuantity() {
+        return flashSaleRemainingQuantity;
+    }
+
+    public void setFlashSaleRemainingQuantity(int flashSaleRemainingQuantity) {
+        this.flashSaleRemainingQuantity = flashSaleRemainingQuantity;
     }
 
     public double getFinalPrice() {
-        if (!flashSaleActive || discountPercent <= 0) {
-            return price;
+        return finalPrice;
+    }
+
+    private void recalculateFinalPrice() {
+        if (flashSaleActive && discountPercent > 0) {
+            this.finalPrice = price * (100 - discountPercent) / 100.0;
+        } else {
+            this.finalPrice = price;
         }
-        return price * (100 - discountPercent) / 100.0;
+    }
+
+    public int getMaxPurchasableQuantity() {
+        if (flashSaleActive) {
+            return Math.min(stock, flashSaleRemainingQuantity);
+        }
+        return stock;
     }
 }

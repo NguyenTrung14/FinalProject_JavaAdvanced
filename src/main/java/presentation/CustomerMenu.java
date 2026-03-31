@@ -214,15 +214,7 @@ public class CustomerMenu {
             System.out.println("Ten SP: " + p.getProductName());
             System.out.println("Dung luong: " + p.getStorage());
             System.out.println("Mau sac: " + p.getColor());
-
-            if (p.isFlashSaleActive()) {
-                System.out.println("Gia goc: " + p.getPrice());
-                System.out.println("Flash sale: -" + p.getDiscountPercent() + "%");
-                System.out.println("Gia sau giam: " + p.getFinalPrice());
-            } else {
-                System.out.println("Gia: " + p.getPrice());
-            }
-
+            System.out.println("Gia: " + p.getPrice());
             System.out.println("So luong: " + item.getQuantity());
             System.out.println("Thanh tien: " + item.getSubtotal());
             System.out.println("--------------------------------");
@@ -275,7 +267,7 @@ public class CustomerMenu {
             cartService.clearCart(currentUser.getUserId());
             System.out.println("Dat hang thanh cong.");
         } else {
-            System.out.println("Dat hang that bai hoac coupon/flash sale khong hop le.");
+            System.out.println("Dat hang that bai.");
         }
     }
 
@@ -355,6 +347,8 @@ public class CustomerMenu {
                 System.out.println("Gia goc: " + p.getPrice());
                 System.out.println("Flash sale: -" + p.getDiscountPercent() + "%");
                 System.out.println("Gia sau giam: " + p.getFinalPrice());
+                System.out.println("So luong uu dai con lai: " + p.getFlashSaleRemainingQuantity());
+                System.out.println("So luong toi da co the mua theo uu dai: " + p.getMaxPurchasableQuantity());
             } else {
                 System.out.println("Gia: " + p.getPrice());
             }

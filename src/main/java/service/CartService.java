@@ -52,26 +52,6 @@ public class CartService {
                 .removeIf(item -> item.getProduct().getProductId() == productId);
     }
 
-    public boolean updateQuantity(int userId, int productId, int quantity) {
-        if (quantity <= 0) {
-            return false;
-        }
-
-        List<CartItem> cart = getOrCreateCart(userId);
-
-        for (CartItem item : cart) {
-            if (item.getProduct().getProductId() == productId) {
-                if (quantity > item.getProduct().getStock()) {
-                    return false;
-                }
-                item.setQuantity(quantity);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     public boolean isEmpty(int userId) {
         return getOrCreateCart(userId).isEmpty();
     }
