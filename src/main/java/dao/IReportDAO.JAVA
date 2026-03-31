@@ -1,9 +1,10 @@
 package dao;
 
-import model.ReportItem;
+import model.TopProductStat;
 import java.util.List;
 
 public interface IReportDAO {
-    List<ReportItem> getTop5BestSellingProducts(int month, int year);
+    List<TopProductStat> getTop5BestSellingProducts(int month, int year);
+
     double getRevenueByMonth(int month, int year);
 }

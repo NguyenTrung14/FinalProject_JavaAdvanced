@@ -1,5 +1,6 @@
 package dao.impl;
 
+import dao.IReportDAO;
 import model.TopProductStat;
 import util.DBConnection;
 
@@ -10,9 +11,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ReportDAO {
+public class ReportDAO implements IReportDAO {
 
-    public List<TopProductStat> getTop5BestSellingProductsOfMonth(int year, int month) {
+    @Override
+    public List<TopProductStat> getTop5BestSellingProducts(int month, int year) {
         List<TopProductStat> list = new ArrayList<>();
 
         String sql = """
@@ -57,5 +59,34 @@ public class ReportDAO {
         }
 
         return list;
+    }
+
+    @Override
+    public double getRevenueByMonth(int month, int year) {
+        String sql = """
+                select coalesce(sum(od.quantity * od.price), 0) as total_revenue
+                from order_details od
+                join orders o on od.order_id = o.order_id
+                where year(o.created_at) = ?
+                  and month(o.created_at) = ?
+                  and o.status in ('SHIPPING', 'DELIVERED')
+                """;
+
+        try (
+                Connection conn = DBConnection.getInstance().getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, year);
+            ps.setInt(2, month);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getDouble("total_revenue");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return 0;
     }
 }

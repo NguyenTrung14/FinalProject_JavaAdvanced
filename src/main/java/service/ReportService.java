@@ -1,18 +1,25 @@
 package service;
 
+import dao.IReportDAO;
+import dao.impl.ReportDAO;
 import model.TopProductStat;
 
 import java.util.List;
 
-import dao.impl.ReportDAO;
-
 public class ReportService {
-    private final ReportDAO reportDAO = new ReportDAO();
+    private final IReportDAO reportDAO = new ReportDAO();
 
-    public List<TopProductStat> getTop5BestSellingProductsOfMonth(int year, int month) {
+    public List<TopProductStat> getTop5BestSellingProducts(int month, int year) {
         if (year <= 0 || month < 1 || month > 12) {
             return List.of();
         }
-        return reportDAO.getTop5BestSellingProductsOfMonth(year, month);
+        return reportDAO.getTop5BestSellingProducts(month, year);
+    }
+
+    public double getRevenueByMonth(int month, int year) {
+        if (year <= 0 || month < 1 || month > 12) {
+            return 0;
+        }
+        return reportDAO.getRevenueByMonth(month, year);
     }
 }
