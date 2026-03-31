@@ -100,6 +100,70 @@ public class ProductDAO implements IProductDAO {
         return null;
     }
 
+    public Product findByIdForUpdate(Connection conn, int productId) throws SQLException {
+        String sql = """
+                select
+                    p.product_id,
+                    p.product_name,
+                    p.storage,
+                    p.color,
+                    p.price,
+                    p.stock,
+                    p.description,
+                    p.category_id,
+                    p.status,
+                    p.created_at,
+                    fs.flash_sale_id,
+                    fs.discount_percent,
+                    (fs.max_quantity - fs.sold_quantity) as remaining_quantity
+                from products p
+                left join flash_sales fs
+                    on fs.product_id = p.product_id
+                    and fs.status = 'ACTIVE'
+                    and now() between fs.start_time and fs.end_time
+                    and fs.sold_quantity < fs.max_quantity
+                where p.product_id = ? and p.status = 'ACTIVE'
+                for update
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSet(rs);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public boolean decreaseStock(Connection conn, int productId, int quantity) throws SQLException {
+        String sql = """
+                update products
+                set stock = stock - ?
+                where product_id = ? and stock >= ?
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, quantity);
+            ps.setInt(2, productId);
+            ps.setInt(3, quantity);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean increaseStock(Connection conn, int productId, int quantity) throws SQLException {
+        String sql = "update products set stock = stock + ? where product_id = ?";
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, quantity);
+            ps.setInt(2, productId);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
     @Override
     public boolean existsById(int id) {
         String sql = "select 1 from products where product_id = ? and status = 'ACTIVE'";

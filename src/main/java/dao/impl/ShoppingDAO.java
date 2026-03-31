@@ -10,44 +10,184 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 
 public class ShoppingDAO {
     private final FlashSaleDAO flashSaleDAO = new FlashSaleDAO();
     private final CouponDAO couponDAO = new CouponDAO();
+    private final ProductDAO productDAO = new ProductDAO();
+    private final CartDAO cartDAO = new CartDAO();
 
-    public boolean checkout(int userId, List<CartItem> cartItems, String couponCode) {
+    public boolean addToCartAndReserve(int userId, int productId, int quantity) {
         Connection conn = null;
 
         try {
             conn = DBConnection.getInstance().getConnection();
             conn.setAutoCommit(false);
 
+            Product product = productDAO.findByIdForUpdate(conn, productId);
+            if (product == null || quantity <= 0) {
+                conn.rollback();
+                return false;
+            }
+
+            if (product.getStock() < quantity) {
+                conn.rollback();
+                return false;
+            }
+
+            FlashSale flashSale = flashSaleDAO.findActiveByProductId(conn, productId);
+
+            Integer flashSaleId = null;
+            int flashQty = 0;
+            int normalQty = quantity;
+            double flashPrice = 0;
+            double normalPrice = product.getPrice();
+
+            if (flashSale != null) {
+                int remaining = flashSale.getRemainingQuantity();
+                flashQty = Math.min(quantity, remaining);
+                normalQty = quantity - flashQty;
+                flashSaleId = flashQty > 0 ? flashSale.getFlashSaleId() : null;
+                flashPrice = product.getPrice() * (100 - flashSale.getDiscountPercent()) / 100.0;
+            }
+
+            if (!productDAO.decreaseStock(conn, productId, quantity)) {
+                conn.rollback();
+                return false;
+            }
+
+            if (flashQty > 0) {
+                if (!flashSaleDAO.increaseSoldQuantity(conn, flashSaleId, flashQty)) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            int cartId = cartDAO.findOrCreateCart(conn, userId);
+
+            boolean ok = cartDAO.upsertCartItem(
+                    conn,
+                    cartId,
+                    productId,
+                    flashSaleId,
+                    quantity,
+                    flashQty,
+                    normalQty,
+                    flashPrice,
+                    normalPrice);
+
+            if (!ok) {
+                conn.rollback();
+                return false;
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception ignored) {
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public List<CartItem> getReservedCartItems(int userId) {
+        try (Connection conn = DBConnection.getInstance().getConnection()) {
+            return cartDAO.findCartItemsByUserId(conn, userId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return List.of();
+        }
+    }
+
+    public boolean removeCartItemAndRestore(int userId, int productId) {
+        Connection conn = null;
+
+        try {
+            conn = DBConnection.getInstance().getConnection();
+            conn.setAutoCommit(false);
+
+            CartItem item = cartDAO.findCartItemByUserIdAndProductId(conn, userId, productId);
+            if (item == null) {
+                conn.rollback();
+                return false;
+            }
+
+            if (!productDAO.increaseStock(conn, productId, item.getQuantity())) {
+                conn.rollback();
+                return false;
+            }
+
+            if (item.getFlashSaleId() != null && item.getReservedFlashQuantity() > 0) {
+                if (!flashSaleDAO.decreaseSoldQuantity(conn, item.getFlashSaleId(), item.getReservedFlashQuantity())) {
+                    conn.rollback();
+                    return false;
+                }
+            }
+
+            if (!cartDAO.deleteCartItemById(conn, item.getCartItemId())) {
+                conn.rollback();
+                return false;
+            }
+
+            conn.commit();
+            return true;
+        } catch (Exception e) {
+            try {
+                if (conn != null) {
+                    conn.rollback();
+                }
+            } catch (Exception ignored) {
+            }
+            e.printStackTrace();
+            return false;
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    public boolean checkoutReservedCart(int userId, String couponCode) {
+        Connection conn = null;
+
+        try {
+            conn = DBConnection.getInstance().getConnection();
+            conn.setAutoCommit(false);
+
+            List<CartItem> cartItems = cartDAO.findCartItemsByUserId(conn, userId);
+            if (cartItems == null || cartItems.isEmpty()) {
+                conn.rollback();
+                return false;
+            }
+
             double originalTotal = 0;
             double flashDiscountTotal = 0;
 
             for (CartItem item : cartItems) {
-                Product latestProduct = findProductById(conn, item.getProduct().getProductId());
-                int quantity = item.getQuantity();
+                double lineOriginal = item.getProduct().getPrice() * item.getQuantity();
+                double lineActual = item.getSubtotal();
 
-                if (latestProduct == null || quantity <= 0 || latestProduct.getStock() < quantity) {
-                    conn.rollback();
-                    return false;
-                }
-
-                originalTotal += latestProduct.getPrice() * quantity;
-
-                FlashSale flashSale = flashSaleDAO.findActiveByProductId(conn, latestProduct.getProductId());
-                if (flashSale != null) {
-                    if (flashSale.getRemainingQuantity() < quantity) {
-                        conn.rollback();
-                        return false;
-                    }
-
-                    double itemDiscount = latestProduct.getPrice() * quantity * flashSale.getDiscountPercent() / 100.0;
-                    flashDiscountTotal += itemDiscount;
-                }
+                originalTotal += lineOriginal;
+                flashDiscountTotal += (lineOriginal - lineActual);
             }
 
             double afterFlashTotal = originalTotal - flashDiscountTotal;
@@ -88,27 +228,17 @@ public class ShoppingDAO {
             }
 
             for (CartItem item : cartItems) {
-                Product product = findProductById(conn, item.getProduct().getProductId());
-                int quantity = item.getQuantity();
-                double finalUnitPrice = product.getPrice();
+                double avgUnitPrice = item.getSubtotal() / item.getQuantity();
 
-                FlashSale flashSale = flashSaleDAO.findActiveByProductId(conn, product.getProductId());
-                if (flashSale != null) {
-                    finalUnitPrice = product.getPrice() * (100 - flashSale.getDiscountPercent()) / 100.0;
-
-                    boolean soldUpdated = flashSaleDAO.increaseSoldQuantity(conn, flashSale.getFlashSaleId(), quantity);
-                    if (!soldUpdated) {
-                        conn.rollback();
-                        return false;
-                    }
-                }
-
-                if (!insertOrderDetail(conn, orderId, product.getProductId(), quantity, finalUnitPrice)) {
-                    conn.rollback();
-                    return false;
-                }
-
-                if (!decreaseStock(conn, product.getProductId(), quantity)) {
+                if (!insertOrderDetail(
+                        conn,
+                        orderId,
+                        item.getProduct().getProductId(),
+                        item.getQuantity(),
+                        avgUnitPrice,
+                        item.getFlashSaleId(),
+                        item.getReservedFlashQuantity(),
+                        item.getReservedNormalQuantity())) {
                     conn.rollback();
                     return false;
                 }
@@ -122,6 +252,11 @@ public class ShoppingDAO {
                 }
             }
 
+            if (!cartDAO.clearCartItemsByUserId(conn, userId)) {
+                conn.rollback();
+                return false;
+            }
+
             conn.commit();
             return true;
         } catch (Exception e) {
@@ -129,10 +264,8 @@ public class ShoppingDAO {
                 if (conn != null) {
                     conn.rollback();
                 }
-            } catch (SQLException ex) {
-                ex.printStackTrace();
+            } catch (Exception ignored) {
             }
-
             e.printStackTrace();
             return false;
         } finally {
@@ -141,10 +274,13 @@ public class ShoppingDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
+            } catch (Exception ignored) {
             }
         }
+    }
+
+    public boolean checkout(int userId, List<CartItem> cartItems, String couponCode) {
+        return checkoutReservedCart(userId, couponCode);
     }
 
     private int insertOrder(Connection conn, int userId, double totalAmount, String couponCode, double discountAmount)
@@ -154,7 +290,7 @@ public class ShoppingDAO {
                 values(?, ?, 'PENDING', now(), ?, ?)
                 """;
 
-        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, userId);
             ps.setDouble(2, totalAmount);
             ps.setString(3, couponCode);
@@ -173,53 +309,36 @@ public class ShoppingDAO {
         return 0;
     }
 
-    private boolean insertOrderDetail(Connection conn, int orderId, int productId, int quantity, double price)
-            throws SQLException {
-        String sql = "insert into order_details(order_id, product_id, quantity, price) values(?, ?, ?, ?)";
+    private boolean insertOrderDetail(Connection conn,
+            int orderId,
+            int productId,
+            int quantity,
+            double price,
+            Integer flashSaleId,
+            int flashSaleQuantity,
+            int normalQuantity) throws SQLException {
+        String sql = """
+                insert into order_details(
+                    order_id, product_id, quantity, price,
+                    flash_sale_id, flash_sale_quantity, normal_quantity
+                ) values(?, ?, ?, ?, ?, ?, ?)
+                """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, orderId);
             ps.setInt(2, productId);
             ps.setInt(3, quantity);
             ps.setDouble(4, price);
-            return ps.executeUpdate() > 0;
-        }
-    }
 
-    private boolean decreaseStock(Connection conn, int productId, int quantity) throws SQLException {
-        String sql = "update products set stock = stock - ? where product_id = ? and stock >= ?";
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, quantity);
-            ps.setInt(2, productId);
-            ps.setInt(3, quantity);
-            return ps.executeUpdate() > 0;
-        }
-    }
-
-    private Product findProductById(Connection conn, int productId) throws SQLException {
-        String sql = "select * from products where product_id = ? and status = 'ACTIVE'";
-
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, productId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    Product p = new Product();
-                    p.setProductId(rs.getInt("product_id"));
-                    p.setProductName(rs.getString("product_name"));
-                    p.setStorage(rs.getString("storage"));
-                    p.setColor(rs.getString("color"));
-                    p.setPrice(rs.getDouble("price"));
-                    p.setStock(rs.getInt("stock"));
-                    p.setDescription(rs.getString("description"));
-                    p.setCategoryId(rs.getInt("category_id"));
-                    p.setStatus(rs.getString("status"));
-                    return p;
-                }
+            if (flashSaleId == null) {
+                ps.setNull(5, java.sql.Types.INTEGER);
+            } else {
+                ps.setInt(5, flashSaleId);
             }
-        }
 
-        return null;
+            ps.setInt(6, flashSaleQuantity);
+            ps.setInt(7, normalQuantity);
+            return ps.executeUpdate() > 0;
+        }
     }
 }

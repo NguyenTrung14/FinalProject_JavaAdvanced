@@ -5,7 +5,6 @@ import model.Order;
 import model.OrderDetail;
 import model.Product;
 import model.User;
-import service.CartService;
 import service.OrderService;
 import service.ProductService;
 import service.ShoppingService;
@@ -17,13 +16,11 @@ import java.util.Scanner;
 public class CustomerMenu {
     private final Scanner sc = new Scanner(System.in);
     private final ProductService productService = new ProductService();
-    private final CartService cartService;
     private final ShoppingService shoppingService = new ShoppingService();
     private final OrderService orderService = new OrderService();
     private final UserService userService = new UserService();
 
-    public CustomerMenu(CartService cartService) {
-        this.cartService = cartService;
+    public CustomerMenu() {
     }
 
     public void display(User currentUser) {
@@ -195,18 +192,20 @@ public class CustomerMenu {
             return;
         }
 
-        boolean result = cartService.addToCart(currentUser.getUserId(), product, quantity);
+        boolean result = shoppingService.addToCartAndReserve(currentUser.getUserId(), productId, quantity);
         System.out.println(result ? "Them vao gio hang thanh cong." : "Them vao gio hang that bai.");
     }
 
     private void showCart(User currentUser) {
-        List<CartItem> cartItems = cartService.getCart(currentUser.getUserId());
+        List<CartItem> cartItems = shoppingService.getReservedCartItems(currentUser.getUserId());
         if (cartItems == null || cartItems.isEmpty()) {
             System.out.println("Gio hang dang trong.");
             return;
         }
 
         System.out.println("\n========== GIO HANG ==========");
+        double total = 0;
+
         for (CartItem item : cartItems) {
             Product p = item.getProduct();
 
@@ -214,17 +213,31 @@ public class CustomerMenu {
             System.out.println("Ten SP: " + p.getProductName());
             System.out.println("Dung luong: " + p.getStorage());
             System.out.println("Mau sac: " + p.getColor());
-            System.out.println("Gia: " + p.getPrice());
-            System.out.println("So luong: " + item.getQuantity());
+            System.out.println("Tong so luong: " + item.getQuantity());
+
+            if (item.getReservedFlashQuantity() > 0) {
+                System.out.println("So luong flash sale: " + item.getReservedFlashQuantity());
+                System.out.println("Gia flash sale: " + item.getFlashUnitPrice());
+                System.out.println("Tien flash sale: " + (item.getReservedFlashQuantity() * item.getFlashUnitPrice()));
+            }
+
+            if (item.getReservedNormalQuantity() > 0) {
+                System.out.println("So luong gia goc: " + item.getReservedNormalQuantity());
+                System.out.println("Gia goc: " + item.getNormalUnitPrice());
+                System.out.println("Tien gia goc: " + (item.getReservedNormalQuantity() * item.getNormalUnitPrice()));
+            }
+
             System.out.println("Thanh tien: " + item.getSubtotal());
             System.out.println("--------------------------------");
+            total += item.getSubtotal();
         }
 
-        System.out.println("Tong tien gio hang: " + cartService.getTotalAmount(currentUser.getUserId()));
+        System.out.println("Tong tien gio hang: " + total);
     }
 
     private void removeFromCart(User currentUser) {
-        if (cartService.isEmpty(currentUser.getUserId())) {
+        List<CartItem> cartItems = shoppingService.getReservedCartItems(currentUser.getUserId());
+        if (cartItems == null || cartItems.isEmpty()) {
             System.out.println("Gio hang dang trong.");
             return;
         }
@@ -233,14 +246,15 @@ public class CustomerMenu {
         System.out.print("Nhap ma san pham can xoa khoi gio: ");
         int productId = inputInt();
 
-        boolean result = cartService.removeFromCart(currentUser.getUserId(), productId);
+        boolean result = shoppingService.removeCartItemAndRestore(currentUser.getUserId(), productId);
         System.out.println(result
                 ? "Xoa san pham khoi gio hang thanh cong."
                 : "Khong tim thay san pham trong gio hang.");
     }
 
     private void checkout(User currentUser) {
-        if (cartService.isEmpty(currentUser.getUserId())) {
+        List<CartItem> cartItems = shoppingService.getReservedCartItems(currentUser.getUserId());
+        if (cartItems == null || cartItems.isEmpty()) {
             System.out.println("Gio hang dang trong.");
             return;
         }
@@ -258,16 +272,14 @@ public class CustomerMenu {
             return;
         }
 
-        boolean result = shoppingService.checkout(
+        boolean result = shoppingService.checkoutReservedCart(
                 currentUser.getUserId(),
-                cartService.getCart(currentUser.getUserId()),
                 couponCode.isEmpty() ? null : couponCode);
 
         if (result) {
-            cartService.clearCart(currentUser.getUserId());
             System.out.println("Dat hang thanh cong.");
         } else {
-            System.out.println("Dat hang that bai.");
+            System.out.println("Dat hang that bai hoac coupon khong hop le.");
         }
     }
 
@@ -323,8 +335,10 @@ public class CustomerMenu {
             System.out.println("Ten SP: " + detail.getProductName());
             System.out.println("Dung luong: " + detail.getStorage());
             System.out.println("Mau sac: " + detail.getColor());
-            System.out.println("Don gia: " + detail.getUnitPrice());
-            System.out.println("So luong: " + detail.getQuantity());
+            System.out.println("Don gia trung binh: " + detail.getUnitPrice());
+            System.out.println("So luong flash sale: " + detail.getFlashSaleQuantity());
+            System.out.println("So luong gia goc: " + detail.getNormalQuantity());
+            System.out.println("Tong so luong: " + detail.getQuantity());
             System.out.println("Thanh tien: " + detail.getSubtotal());
             System.out.println("--------------------------------");
         }
@@ -348,7 +362,6 @@ public class CustomerMenu {
                 System.out.println("Flash sale: -" + p.getDiscountPercent() + "%");
                 System.out.println("Gia sau giam: " + p.getFinalPrice());
                 System.out.println("So luong uu dai con lai: " + p.getFlashSaleRemainingQuantity());
-                System.out.println("So luong toi da co the mua theo uu dai: " + p.getMaxPurchasableQuantity());
             } else {
                 System.out.println("Gia: " + p.getPrice());
             }

@@ -12,10 +12,9 @@ public class Product {
     private String status;
     private String createdAt;
 
-    private boolean flashSaleActive;
     private double discountPercent;
+    private boolean flashSaleActive;
     private int flashSaleRemainingQuantity;
-    private double finalPrice;
 
     public Product() {
     }
@@ -33,6 +32,9 @@ public class Product {
         this.categoryId = categoryId;
         this.status = status;
         this.createdAt = createdAt;
+        this.discountPercent = 0;
+        this.flashSaleActive = false;
+        this.flashSaleRemainingQuantity = 0;
     }
 
     public int getProductId() {
@@ -73,7 +75,6 @@ public class Product {
 
     public void setPrice(double price) {
         this.price = price;
-        recalculateFinalPrice();
     }
 
     public int getStock() {
@@ -116,22 +117,20 @@ public class Product {
         this.createdAt = createdAt;
     }
 
-    public boolean isFlashSaleActive() {
-        return flashSaleActive;
-    }
-
-    public void setFlashSaleActive(boolean flashSaleActive) {
-        this.flashSaleActive = flashSaleActive;
-        recalculateFinalPrice();
-    }
-
     public double getDiscountPercent() {
         return discountPercent;
     }
 
     public void setDiscountPercent(double discountPercent) {
         this.discountPercent = discountPercent;
-        recalculateFinalPrice();
+    }
+
+    public boolean isFlashSaleActive() {
+        return flashSaleActive;
+    }
+
+    public void setFlashSaleActive(boolean flashSaleActive) {
+        this.flashSaleActive = flashSaleActive;
     }
 
     public int getFlashSaleRemainingQuantity() {
@@ -143,21 +142,9 @@ public class Product {
     }
 
     public double getFinalPrice() {
-        return finalPrice;
-    }
-
-    private void recalculateFinalPrice() {
-        if (flashSaleActive && discountPercent > 0) {
-            this.finalPrice = price * (100 - discountPercent) / 100.0;
-        } else {
-            this.finalPrice = price;
+        if (!flashSaleActive || discountPercent <= 0) {
+            return price;
         }
-    }
-
-    public int getMaxPurchasableQuantity() {
-        if (flashSaleActive) {
-            return Math.min(stock, flashSaleRemainingQuantity);
-        }
-        return stock;
+        return price * (100 - discountPercent) / 100.0;
     }
 }

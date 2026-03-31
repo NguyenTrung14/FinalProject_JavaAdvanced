@@ -14,13 +14,15 @@ import java.util.List;
 
 public class OrderDAO implements IOrderDAO {
 
+    private final ProductDAO productDAO = new ProductDAO();
+    private final FlashSaleDAO flashSaleDAO = new FlashSaleDAO();
+
     @Override
     public List<Order> findAllOrders() {
         List<Order> list = new ArrayList<>();
         String sql = "select * from orders order by order_id desc";
 
-        try (
-                Connection conn = DBConnection.getInstance().getConnection();
+        try (Connection conn = DBConnection.getInstance().getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -38,8 +40,7 @@ public class OrderDAO implements IOrderDAO {
         List<Order> list = new ArrayList<>();
         String sql = "select * from orders where user_id = ? order by order_id desc";
 
-        try (
-                Connection conn = DBConnection.getInstance().getConnection();
+        try (Connection conn = DBConnection.getInstance().getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
 
@@ -59,8 +60,7 @@ public class OrderDAO implements IOrderDAO {
     public Order findById(int orderId) {
         String sql = "select * from orders where order_id = ?";
 
-        try (
-                Connection conn = DBConnection.getInstance().getConnection();
+        try (Connection conn = DBConnection.getInstance().getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, orderId);
 
@@ -101,10 +101,21 @@ public class OrderDAO implements IOrderDAO {
                 List<OrderDetail> details = findOrderDetailsByOrderId(conn, orderId);
 
                 for (OrderDetail detail : details) {
-                    boolean ok = increaseStock(conn, detail.getProductId(), detail.getQuantity());
-                    if (!ok) {
+                    boolean stockOk = productDAO.increaseStock(conn, detail.getProductId(), detail.getQuantity());
+                    if (!stockOk) {
                         conn.rollback();
                         return false;
+                    }
+
+                    if (detail.getFlashSaleId() != null && detail.getFlashSaleQuantity() > 0) {
+                        boolean flashOk = flashSaleDAO.decreaseSoldQuantity(
+                                conn,
+                                detail.getFlashSaleId(),
+                                detail.getFlashSaleQuantity());
+                        if (!flashOk) {
+                            conn.rollback();
+                            return false;
+                        }
                     }
                 }
             }
@@ -156,6 +167,9 @@ public class OrderDAO implements IOrderDAO {
                     od.product_id,
                     od.quantity,
                     od.price as unit_price,
+                    od.flash_sale_id,
+                    od.flash_sale_quantity,
+                    od.normal_quantity,
                     p.product_name,
                     p.storage,
                     p.color
@@ -165,23 +179,13 @@ public class OrderDAO implements IOrderDAO {
                 order by od.order_detail_id asc
                 """;
 
-        try (
-                Connection conn = DBConnection.getInstance().getConnection();
+        try (Connection conn = DBConnection.getInstance().getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, orderId);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    OrderDetail detail = new OrderDetail();
-                    detail.setOrderDetailId(rs.getInt("order_detail_id"));
-                    detail.setOrderId(rs.getInt("order_id"));
-                    detail.setProductId(rs.getInt("product_id"));
-                    detail.setQuantity(rs.getInt("quantity"));
-                    detail.setUnitPrice(rs.getDouble("unit_price"));
-                    detail.setProductName(rs.getString("product_name"));
-                    detail.setStorage(rs.getString("storage"));
-                    detail.setColor(rs.getString("color"));
-                    list.add(detail);
+                    list.add(mapOrderDetail(rs));
                 }
             }
         } catch (SQLException e) {
@@ -216,6 +220,9 @@ public class OrderDAO implements IOrderDAO {
                     od.product_id,
                     od.quantity,
                     od.price as unit_price,
+                    od.flash_sale_id,
+                    od.flash_sale_quantity,
+                    od.normal_quantity,
                     p.product_name,
                     p.storage,
                     p.color
@@ -230,16 +237,7 @@ public class OrderDAO implements IOrderDAO {
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    OrderDetail detail = new OrderDetail();
-                    detail.setOrderDetailId(rs.getInt("order_detail_id"));
-                    detail.setOrderId(rs.getInt("order_id"));
-                    detail.setProductId(rs.getInt("product_id"));
-                    detail.setQuantity(rs.getInt("quantity"));
-                    detail.setUnitPrice(rs.getDouble("unit_price"));
-                    detail.setProductName(rs.getString("product_name"));
-                    detail.setStorage(rs.getString("storage"));
-                    detail.setColor(rs.getString("color"));
-                    list.add(detail);
+                    list.add(mapOrderDetail(rs));
                 }
             }
         }
@@ -247,14 +245,27 @@ public class OrderDAO implements IOrderDAO {
         return list;
     }
 
-    private boolean increaseStock(Connection conn, int productId, int quantity) throws SQLException {
-        String sql = "update products set stock = stock + ? where product_id = ?";
+    private OrderDetail mapOrderDetail(ResultSet rs) throws SQLException {
+        OrderDetail detail = new OrderDetail();
+        detail.setOrderDetailId(rs.getInt("order_detail_id"));
+        detail.setOrderId(rs.getInt("order_id"));
+        detail.setProductId(rs.getInt("product_id"));
+        detail.setQuantity(rs.getInt("quantity"));
+        detail.setUnitPrice(rs.getDouble("unit_price"));
 
-        try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, quantity);
-            ps.setInt(2, productId);
-            return ps.executeUpdate() > 0;
+        int flashSaleId = rs.getInt("flash_sale_id");
+        if (rs.wasNull()) {
+            detail.setFlashSaleId(null);
+        } else {
+            detail.setFlashSaleId(flashSaleId);
         }
+
+        detail.setFlashSaleQuantity(rs.getInt("flash_sale_quantity"));
+        detail.setNormalQuantity(rs.getInt("normal_quantity"));
+        detail.setProductName(rs.getString("product_name"));
+        detail.setStorage(rs.getString("storage"));
+        detail.setColor(rs.getString("color"));
+        return detail;
     }
 
     private Order mapOrder(ResultSet rs) throws SQLException {

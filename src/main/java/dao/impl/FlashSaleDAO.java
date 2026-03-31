@@ -18,8 +18,7 @@ public class FlashSaleDAO {
                 values(?, ?, ?, ?, ?, ?, ?)
                 """;
 
-        try (
-                Connection conn = DBConnection.getInstance().getConnection();
+        try (Connection conn = DBConnection.getInstance().getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, flashSale.getProductId());
             ps.setDouble(2, flashSale.getDiscountPercent());
@@ -40,8 +39,7 @@ public class FlashSaleDAO {
         List<FlashSale> list = new ArrayList<>();
         String sql = "select * from flash_sales order by flash_sale_id desc";
 
-        try (
-                Connection conn = DBConnection.getInstance().getConnection();
+        try (Connection conn = DBConnection.getInstance().getConnection();
                 PreparedStatement ps = conn.prepareStatement(sql);
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
@@ -84,6 +82,22 @@ public class FlashSaleDAO {
                 set sold_quantity = sold_quantity + ?
                 where flash_sale_id = ?
                   and sold_quantity + ? <= max_quantity
+                """;
+
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, quantity);
+            ps.setInt(2, flashSaleId);
+            ps.setInt(3, quantity);
+            return ps.executeUpdate() > 0;
+        }
+    }
+
+    public boolean decreaseSoldQuantity(Connection conn, int flashSaleId, int quantity) throws SQLException {
+        String sql = """
+                update flash_sales
+                set sold_quantity = sold_quantity - ?
+                where flash_sale_id = ?
+                  and sold_quantity >= ?
                 """;
 
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

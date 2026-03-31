@@ -10,19 +10,11 @@ public class OrderDetail {
     private String storage;
     private String color;
 
-    public OrderDetail() {
-    }
+    private Integer flashSaleId;
+    private int flashSaleQuantity;
+    private int normalQuantity;
 
-    public OrderDetail(int orderDetailId, int orderId, int productId, int quantity, double unitPrice,
-            String productName, String storage, String color) {
-        this.orderDetailId = orderDetailId;
-        this.orderId = orderId;
-        this.productId = productId;
-        this.quantity = quantity;
-        this.unitPrice = unitPrice;
-        this.productName = productName;
-        this.storage = storage;
-        this.color = color;
+    public OrderDetail() {
     }
 
     public int getOrderDetailId() {
@@ -87,6 +79,30 @@ public class OrderDetail {
 
     public void setColor(String color) {
         this.color = color;
+    }
+
+    public Integer getFlashSaleId() {
+        return flashSaleId;
+    }
+
+    public void setFlashSaleId(Integer flashSaleId) {
+        this.flashSaleId = flashSaleId;
+    }
+
+    public int getFlashSaleQuantity() {
+        return flashSaleQuantity;
+    }
+
+    public void setFlashSaleQuantity(int flashSaleQuantity) {
+        this.flashSaleQuantity = flashSaleQuantity;
+    }
+
+    public int getNormalQuantity() {
+        return normalQuantity;
+    }
+
+    public void setNormalQuantity(int normalQuantity) {
+        this.normalQuantity = normalQuantity;
     }
 
     public double getSubtotal() {
