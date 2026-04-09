@@ -100,6 +100,7 @@ create table if not exists cart_items (
     cart_item_id int auto_increment primary key,
     cart_id int not null,
     product_id int not null,
+    flash_sale_id int,
     quantity int not null,
     reserved_flash_quantity int not null default 0,
     reserved_normal_quantity int not null default 0,
@@ -109,10 +110,11 @@ create table if not exists cart_items (
     updated_at datetime default current_timestamp on update current_timestamp,
     unique key uk_cart_product (cart_id, product_id),
     foreign key (cart_id) references carts(cart_id) on delete cascade,
-    foreign key (product_id) references products(product_id)
+    foreign key (product_id) references products(product_id),
+    foreign key (flash_sale_id) references flash_sales (flash_sale_id)
 ) engine=InnoDB;
 
-update users set password = "$2a$12$vmL7dRDE2xK0kphG.uDdIO0IMPqx5dDRUhPTSh9usB9Ne6HCnk.82" where user_id = 1;
+update users set password = "$2a$12$OWa35nxmw.yHOoqgyEjAmOEEfgfocaAeyr0zoMrovgxP1JCbxsQ.K" where user_id = 1;
 insert into users(full_name, email, phone, password, address, role, status)
 values (
     'Nguyen Trung',
